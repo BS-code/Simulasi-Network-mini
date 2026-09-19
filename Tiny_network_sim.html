@@ -1,0 +1,2756 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini Packet Tracer - Fixed Toolbar</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+  
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: #f0f2f5;
+    color: #2c3e50;
+    user-select: none;
+  }
+
+  /* === TOP BAR === */
+  .topbar {
+    height: 46px;
+    background: linear-gradient(180deg, #ffffff, #f5f7fa);
+    border-bottom: 1px solid #d0d7de;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    position: relative;
+    z-index: 50;
+  }
+  .topbar .logo {
+    font-weight: 700;
+    color: #1976d2;
+    font-size: 1rem;
+    margin-right: 15px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .topbar .logo::before { content: '🌐'; font-size: 1.2rem; }
+  .menu-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: #4a5568;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    transition: 0.15s;
+    font-weight: 500;
+  }
+  .menu-btn:hover { background: #e8f0fe; color: #1976d2; border-color: #c3d9f5; }
+  .menu-btn:active { transform: scale(0.97); }
+  .topbar .spacer { flex: 1; }
+  .mode-badge {
+    background: #1976d2;
+    color: #fff;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 6px rgba(25,118,210,0.3);
+  }
+  .mode-badge.simulating {
+    background: #f59e0b;
+    animation: blink 1.2s infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  .main-container { display: flex; height: calc(100% - 46px); }
+
+  /* === PALET === */
+  .palette {
+    width: 230px;
+    background: #ffffff;
+    border-right: 1px solid #d0d7de;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    flex-shrink: 0;
+    box-shadow: 1px 0 3px rgba(0,0,0,0.03);
+  }
+  .palette-header {
+    padding: 11px 14px;
+    font-size: 0.7rem;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    border-bottom: 1px solid #edf2f7;
+    background: #f7fafc;
+    font-weight: 700;
+  }
+  .device-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    cursor: grab;
+    border-bottom: 1px solid #edf2f7;
+    transition: 0.15s;
+    font-size: 0.85rem;
+  }
+  .device-item:hover { background: #e8f0fe; border-left: 3px solid #1976d2; padding-left: 11px; }
+  .device-item:active { cursor: grabbing; }
+  .device-icon { font-size: 1.6rem; width: 32px; text-align: center; }
+  .device-item .info { display: flex; flex-direction: column; }
+  .device-item .name { font-weight: 600; color: #2d3748; }
+  .device-item .desc { font-size: 0.7rem; color: #a0aec0; }
+
+  .layer-info {
+    padding: 8px 14px;
+    font-size: 0.68rem;
+    line-height: 1.5;
+    color: #718096;
+    background: #f7fafc;
+    border-bottom: 1px solid #edf2f7;
+  }
+  .layer-info strong { color: #2d3748; }
+  .layer-info .l2 { color: #ea580c; font-weight: 700; }
+  .layer-info .l3 { color: #16a34a; font-weight: 700; }
+
+  /* === WORKSPACE === */
+  .workspace-wrap { flex: 1; position: relative; overflow: hidden; background: #f7fafc; }
+  .workspace {
+    position: absolute;
+    inset: 0 0 34px 0;
+    background-image: 
+      linear-gradient(#e2e8f0 1px, transparent 1px),
+      linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
+    background-size: 25px 25px;
+    overflow: hidden;
+    cursor: default;
+    touch-action: none;
+  }
+  .cable-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+    overflow: visible;
+  }
+  .packet-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 500;
+    overflow: visible;
+  }
+
+  /* Node device */
+  .node {
+    position: absolute;
+    width: 96px;
+    height: 96px;
+    background: #ffffff;
+    border: 2px solid #cbd5e0;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    z-index: 10;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+    transition: border-color 0.15s, box-shadow 0.15s;
+    padding: 4px;
+    touch-action: none;
+  }
+  .node * { pointer-events: none; }
+  .node.dragging {
+    cursor: grabbing !important;
+    box-shadow: 0 15px 35px rgba(25,118,210,0.5);
+    border-color: #1976d2;
+    z-index: 9999;
+    transition: none;
+  }
+  .node:hover {
+    border-color: #1976d2;
+    box-shadow: 0 5px 15px rgba(25,118,210,0.25);
+  }
+  .node.selected {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245,158,11,0.25), 0 5px 15px rgba(245,158,11,0.3);
+  }
+  .node.connecting {
+    border-color: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34,197,94,0.3), 0 0 20px rgba(34,197,94,0.5);
+    animation: pulseGreen 1s infinite;
+  }
+  .node.port-full { border-color: #f59e0b; }
+  .node.port-full::after {
+    content: '⛔';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    font-size: 16px;
+    background: #fef3c7;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #f59e0b;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    pointer-events: none;
+  }
+  @keyframes pulseGreen {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(34,197,94,0.3), 0 0 15px rgba(34,197,94,0.4); }
+    50% { box-shadow: 0 0 0 5px rgba(34,197,94,0.5), 0 0 25px rgba(34,197,94,0.8); }
+  }
+  .node.ping-source {
+    border-color: #06b6d4;
+    box-shadow: 0 0 0 3px rgba(6,182,212,0.3), 0 0 25px rgba(6,182,212,0.6);
+  }
+  .node.ping-target {
+    border-color: #8b5cf6;
+    box-shadow: 0 0 0 3px rgba(139,92,246,0.3), 0 0 25px rgba(139,92,246,0.6);
+  }
+  .node .node-icon { font-size: 1.8rem; line-height: 1; }
+  .node .node-label {
+    font-size: 0.65rem;
+    color: #2d3748;
+    margin-top: 2px;
+    font-weight: 700;
+    max-width: 92px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+  }
+  .node .node-ip {
+    font-size: 0.55rem;
+    color: #1976d2;
+    font-family: 'Consolas', monospace;
+    font-weight: 600;
+    max-width: 92px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .node .node-ip.none { color: #a0aec0; font-style: italic; }
+  .node .node-subnet {
+    font-size: 0.5rem;
+    color: #718096;
+    font-family: 'Consolas', monospace;
+    font-weight: 600;
+    max-width: 92px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .node .node-ports {
+    font-size: 0.5rem;
+    color: #718096;
+    font-family: 'Consolas', monospace;
+    font-weight: 600;
+  }
+  .node .node-ports.full { color: #ea580c; }
+
+  .layer-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #1976d2;
+    color: #fff;
+    font-size: 0.55rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 8px;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    pointer-events: none;
+  }
+  .layer-badge.l2 { background: #ea580c; }
+  .layer-badge.l3 { background: #16a34a; }
+  .layer-badge.host { background: #1976d2; }
+
+  /* === KABEL SVG === */
+  .cable-shadow {
+    stroke: rgba(0,0,0,0.08);
+    stroke-width: 8;
+    fill: none;
+    stroke-linecap: round;
+  }
+  .cable {
+    stroke: #64748b;
+    stroke-width: 4;
+    fill: none;
+    stroke-linecap: round;
+    cursor: pointer;
+    pointer-events: stroke;
+  }
+  .cable:hover { stroke-width: 6; }
+  .cable.active { stroke: #16a34a; stroke-width: 5; }
+  .cable.active:hover { stroke: #15803d; stroke-width: 7; }
+  .cable.invalid { stroke: #dc2626; stroke-width: 4; stroke-dasharray: 10,6; }
+  .cable.invalid:hover { stroke-width: 6; }
+  .cable.l2-link { stroke: #ea580c; stroke-width: 4.5; }
+  .cable.l2-link:hover { stroke: #c2410c; stroke-width: 6; }
+  .cable.selected {
+    stroke: #f59e0b !important;
+    stroke-width: 6 !important;
+    filter: drop-shadow(0 0 8px rgba(245,158,11,0.7));
+  }
+  .cable-connector {
+    fill: #ffffff;
+    stroke: #64748b;
+    stroke-width: 2.5;
+    pointer-events: none;
+  }
+  .cable-connector.active { stroke: #16a34a; fill: #dcfce7; }
+  .cable-connector.invalid { stroke: #dc2626; fill: #fee2e2; }
+  .cable-connector.l2-link { stroke: #ea580c; fill: #ffedd5; }
+
+  .cable-hitarea {
+    stroke: transparent;
+    stroke-width: 20;
+    fill: none;
+    cursor: pointer;
+    pointer-events: stroke;
+  }
+
+  .packet { filter: drop-shadow(0 0 6px currentColor); }
+
+  /* === PROPERTIES === */
+  .properties {
+    width: 340px;
+    background: #ffffff;
+    border-left: 1px solid #d0d7de;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    box-shadow: -1px 0 3px rgba(0,0,0,0.03);
+  }
+  .props-header {
+    padding: 13px 16px;
+    background: #f7fafc;
+    border-bottom: 1px solid #edf2f7;
+    font-size: 0.75rem;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .props-body { padding: 16px; overflow-y: auto; flex: 1; }
+  .props-empty {
+    color: #a0aec0;
+    font-size: 0.82rem;
+    text-align: center;
+    padding: 30px 10px;
+    line-height: 1.6;
+    font-style: italic;
+  }
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-size: 0.7rem;
+    color: #718096;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+  }
+  .field input, .field select {
+    width: 100%;
+    background: #ffffff;
+    border: 1px solid #cbd5e0;
+    color: #2d3748;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    outline: none;
+    font-family: 'Consolas', monospace;
+    transition: 0.15s;
+    font-weight: 500;
+  }
+  .field input:focus, .field select:focus {
+    border-color: #1976d2;
+    box-shadow: 0 0 0 3px rgba(25,118,210,0.15);
+  }
+  .field input:disabled {
+    background: #f7fafc;
+    color: #a0aec0;
+    cursor: not-allowed;
+  }
+  .field input.error {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239,68,68,0.15);
+    background: #fef2f2;
+  }
+  .field input.valid {
+    border-color: #16a34a;
+    background: #f0fdf4;
+  }
+  .field-hint {
+    font-size: 0.65rem;
+    color: #a0aec0;
+    margin-top: 4px;
+    line-height: 1.4;
+    font-style: italic;
+  }
+  .field-hint.error { color: #ef4444; font-style: normal; font-weight: 600; }
+  .field-hint.valid { color: #16a34a; font-style: normal; font-weight: 600; }
+
+  .props-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1976d2;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .props-sub {
+    font-size: 0.72rem;
+    color: #718096;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #edf2f7;
+    line-height: 1.6;
+  }
+  .btn {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: 0.15s;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .btn-primary { background: #1976d2; color: #fff; box-shadow: 0 2px 4px rgba(25,118,210,0.3); }
+  .btn-primary:hover { background: #1565c0; }
+  .btn-success { background: #16a34a; color: #fff; box-shadow: 0 2px 4px rgba(22,163,74,0.3); }
+  .btn-success:hover { background: #15803d; }
+  .btn-warning { background: #ea580c; color: #fff; box-shadow: 0 2px 4px rgba(234,88,12,0.3); }
+  .btn-warning:hover { background: #c2410c; }
+  .btn-danger { background: #dc2626; color: #fff; box-shadow: 0 2px 4px rgba(220,38,38,0.3); }
+  .btn-danger:hover { background: #b91c1c; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
+  /* === IP MODE TOGGLE === */
+  .ip-mode-toggle {
+    display: flex;
+    gap: 0;
+    margin-bottom: 12px;
+    border: 1px solid #cbd5e0;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #f7fafc;
+  }
+  .ip-mode-toggle button {
+    flex: 1;
+    padding: 8px 10px;
+    border: none;
+    background: transparent;
+    color: #718096;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 600;
+    transition: 0.15s;
+    font-family: 'Consolas', monospace;
+  }
+  .ip-mode-toggle button:hover {
+    background: #e2e8f0;
+    color: #4a5568;
+  }
+  .ip-mode-toggle button.active {
+    background: #1976d2;
+    color: #fff;
+    box-shadow: 0 2px 4px rgba(25,118,210,0.3);
+  }
+
+  /* IP Preview */
+  .ip-preview {
+    padding: 10px 12px;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    color: #0369a1;
+    font-family: 'Consolas', monospace;
+    line-height: 1.6;
+    margin-top: 8px;
+  }
+  .ip-preview.error {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #b91c1c;
+  }
+  .ip-preview strong { color: #075985; }
+  .ip-preview.error strong { color: #991b1b; }
+  .ip-preview .label {
+    display: inline-block;
+    font-size: 0.62rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 6px;
+    font-weight: 700;
+  }
+
+  /* Subnet visualization */
+  .subnet-viz {
+    display: flex;
+    gap: 3px;
+    margin-top: 8px;
+    padding: 8px;
+    background: #f7fafc;
+    border-radius: 6px;
+    border: 1px solid #edf2f7;
+    justify-content: center;
+    font-family: 'Consolas', monospace;
+    font-size: 0.75rem;
+  }
+  .subnet-octet {
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .subnet-octet.network { background: #16a34a; }
+  .subnet-octet.host { background: #94a3b8; }
+  .subnet-dot {
+    color: #94a3b8;
+    font-weight: 700;
+    align-self: center;
+  }
+
+  .bottombar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 34px;
+    background: #ffffff;
+    border-top: 1px solid #d0d7de;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    font-size: 0.75rem;
+    color: #4a5568;
+    gap: 20px;
+    z-index: 100;
+    box-shadow: 0 -1px 3px rgba(0,0,0,0.04);
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 6px #22c55e;
+    display: inline-block;
+    margin-right: 6px;
+  }
+  .status-dot.simulating {
+    background: #f59e0b;
+    box-shadow: 0 0 6px #f59e0b;
+    animation: blink 1s infinite;
+  }
+  .bottombar .item { display: flex; align-items: center; gap: 6px; }
+  .bottombar .highlight { color: #1976d2; font-weight: 700; }
+
+  .context-hint {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(25,118,210,0.95);
+    color: #fff;
+    padding: 8px 20px;
+    border-radius: 24px;
+    font-size: 0.8rem;
+    z-index: 200;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(25,118,210,0.4);
+  }
+  .context-hint.show { opacity: 1; }
+  .context-hint.error {
+    background: rgba(220,38,38,0.95);
+    box-shadow: 0 4px 12px rgba(220,38,38,0.4);
+  }
+
+  .toast-container {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-end;
+    pointer-events: none;
+  }
+  .toast {
+    background: #ffffff;
+    color: #2d3748;
+    padding: 12px 18px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    animation: slideIn 0.3s ease-out;
+    max-width: 400px;
+    border-left: 4px solid #1976d2;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  .toast.success { border-left-color: #22c55e; }
+  .toast.error { border-left-color: #ef4444; }
+  .toast.info { border-left-color: #1976d2; }
+  .toast.warning { border-left-color: #f59e0b; }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(30px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .legend {
+    position: absolute;
+    bottom: 44px;
+    left: 12px;
+    background: rgba(255,255,255,0.95);
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.7rem;
+    color: #4a5568;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    z-index: 90;
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; }
+  .legend-line { width: 22px; height: 4px; border-radius: 2px; background: #94a3b8; }
+  .legend-line.active { background: #22c55e; }
+  .legend-line.invalid { background: #ef4444; }
+  .legend-line.l2-link { background: #ea580c; }
+
+  .empty-state {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #a0aec0;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .empty-state .icon { font-size: 4rem; opacity: 0.4; margin-bottom: 12px; }
+  .empty-state .title { font-size: 1.1rem; font-weight: 700; color: #cbd5e0; margin-bottom: 6px; }
+  .empty-state .desc { font-size: 0.82rem; color: #a0aec0; line-height: 1.6; }
+  .empty-state .desc strong { color: #718096; }
+
+  .context-menu {
+    position: fixed;
+    background: #ffffff;
+    border: 1px solid #d0d7de;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    padding: 6px;
+    min-width: 250px;
+    z-index: 2000;
+    display: none;
+    animation: menuFade 0.15s ease-out;
+    overflow: hidden;
+  }
+  @keyframes menuFade {
+    from { opacity: 0; transform: scale(0.95) translateY(-5px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .context-menu.show { display: block; }
+  .context-menu-header {
+    padding: 8px 12px 6px 12px;
+    font-size: 0.7rem;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    border-bottom: 1px solid #edf2f7;
+    margin-bottom: 4px;
+  }
+  .context-menu-header strong { color: #1976d2; text-transform: none; letter-spacing: 0; }
+  .ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.83rem;
+    color: #2d3748;
+    transition: 0.1s;
+    font-weight: 500;
+  }
+  .ctx-item:hover { background: #e8f0fe; color: #1976d2; }
+  .ctx-item.danger { color: #dc2626; }
+  .ctx-item.danger:hover { background: #fee2e2; color: #b91c1c; }
+  .ctx-item.success { color: #16a34a; }
+  .ctx-item.success:hover { background: #dcfce7; color: #15803d; }
+  .ctx-item.disabled { opacity: 0.4; cursor: not-allowed; }
+  .ctx-item.disabled:hover { background: transparent; color: #2d3748; }
+  .ctx-icon { font-size: 1rem; width: 20px; text-align: center; }
+  .ctx-submenu-title {
+    padding: 8px 12px 4px 12px;
+    font-size: 0.65rem;
+    color: #a0aec0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+  }
+  .ctx-divider { height: 1px; background: #edf2f7; margin: 4px 0; }
+  .ctx-badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: #e2e8f0;
+    color: #4a5568;
+    margin-left: auto;
+    font-weight: 700;
+  }
+  .ctx-badge.green { background: #dcfce7; color: #16a34a; }
+  .ctx-badge.red { background: #fee2e2; color: #dc2626; }
+  .ctx-badge.blue { background: #dbeafe; color: #1976d2; }
+  .ctx-badge.orange { background: #ffedd5; color: #ea580c; }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: #f7fafc; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #a0aec0; }
+
+  .info-box {
+    background: #f7fafc;
+    border-left: 3px solid #1976d2;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    color: #4a5568;
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+  .info-box.warning { border-left-color: #f59e0b; background: #fffbeb; }
+  .info-box.success { border-left-color: #22c55e; background: #f0fdf4; }
+  .info-box.danger { border-left-color: #ef4444; background: #fef2f2; }
+  .info-box strong { color: #2d3748; }
+
+  .port-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(32px, 1fr));
+    gap: 6px;
+    margin-top: 8px;
+    padding: 10px;
+    background: #f7fafc;
+    border-radius: 8px;
+    border: 1px solid #edf2f7;
+  }
+  .port-cell {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #94a3b8;
+    border: 2px solid #cbd5e0;
+    transition: 0.15s;
+    position: relative;
+  }
+  .port-cell.used {
+    background: #dcfce7;
+    border-color: #22c55e;
+    color: #16a34a;
+  }
+  .port-cell.used::after {
+    content: '●';
+    position: absolute;
+    bottom: -3px;
+    right: -1px;
+    color: #22c55e;
+    font-size: 8px;
+  }
+
+  /* Modal confirm */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 5000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.15s ease-out;
+  }
+  .modal-overlay.show { display: flex; }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .modal-box {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 420px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: modalPop 0.2s ease-out;
+  }
+  @keyframes modalPop {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .modal-box h3 {
+    font-size: 1.1rem;
+    color: #2d3748;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .modal-box p {
+    font-size: 0.85rem;
+    color: #718096;
+    line-height: 1.6;
+    margin-bottom: 20px;
+  }
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .modal-actions .btn {
+    width: auto;
+    padding: 8px 20px;
+    margin: 0;
+    font-size: 0.82rem;
+  }
+  .btn-secondary {
+    background: #e2e8f0;
+    color: #4a5568;
+    box-shadow: none;
+  }
+  .btn-secondary:hover { background: #cbd5e0; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">Mini Packet Tracer</div>
+  <button class="menu-btn" id="btnNew" title="Bersihkan workspace">📄 Baru</button>
+  <button class="menu-btn" id="btnClearCables" title="Hapus semua kabel">✂️ Hapus Kabel</button>
+  <button class="menu-btn" id="btnDemoTopology" title="Muat topology contoh">🏗️ Topology Contoh</button>
+  <button class="menu-btn" id="btnDemo" title="Jalankan demo ping">🎬 Demo Ping</button>
+  <div class="spacer"></div>
+  <div class="mode-badge" id="modeBadge">MODE: PILIH</div>
+</div>
+
+<div class="main-container">
+  <div class="palette">
+    <div class="palette-header">Perangkat Jaringan</div>
+    <div class="layer-info">
+      <span class="l2">L2</span> = Switch (tanpa IP, 24 port)<br>
+      <span class="l3">L3</span> = Router (butuh IP, 4 port)<br>
+      <strong>Host</strong> = PC/Laptop/Server (1 port NIC)
+    </div>
+    <div class="device-item" draggable="true" data-type="pc">
+      <div class="device-icon">💻</div>
+      <div class="info"><div class="name">PC</div><div class="desc">1 NIC · Butuh IP</div></div>
+    </div>
+    <div class="device-item" draggable="true" data-type="laptop">
+      <div class="device-icon">💽</div>
+      <div class="info"><div class="name">Laptop</div><div class="desc">1 NIC · Butuh IP</div></div>
+    </div>
+    <div class="device-item" draggable="true" data-type="switch">
+      <div class="device-icon">🔀</div>
+      <div class="info"><div class="name">Switch</div><div class="desc">24 Port · L2</div></div>
+    </div>
+    <div class="device-item" draggable="true" data-type="router">
+      <div class="device-icon">📡</div>
+      <div class="info"><div class="name">Router</div><div class="desc">4 Port · L3</div></div>
+    </div>
+    <div class="device-item" draggable="true" data-type="server">
+      <div class="device-icon">🖥️</div>
+      <div class="info"><div class="name">Server</div><div class="desc">1 NIC · Butuh IP</div></div>
+    </div>
+    <div class="palette-header" style="margin-top:8px;">Alat</div>
+    <div class="device-item" id="toolConnect" style="cursor:pointer;">
+      <div class="device-icon">🔗</div>
+      <div class="info"><div class="name">Kabel</div><div class="desc">Hubungkan device</div></div>
+    </div>
+    <div class="device-item" id="toolDelete" style="cursor:pointer;">
+      <div class="device-icon">🗑️</div>
+      <div class="info"><div class="name">Hapus</div><div class="desc">Klik device/kabel</div></div>
+    </div>
+    <div class="palette-header" style="margin-top:8px;">IP & Subnet</div>
+    <div style="padding:10px 14px;font-size:0.7rem;color:#718096;line-height:1.6;">
+      <strong style="color:#1976d2;">Manual input:</strong><br>
+      • CIDR: <code>192.168.1.10/24</code><br>
+      • Decimal: <code>192.168.1.10</code><br>
+      &nbsp;&nbsp;+ <code>255.255.255.0</code>
+    </div>
+  </div>
+
+  <div class="workspace-wrap">
+    <div class="workspace" id="workspace">
+      <div class="empty-state" id="emptyState">
+        <div class="icon">🌐</div>
+        <div class="title">Workspace Kosong</div>
+        <div class="desc">
+          <strong>Drag perangkat</strong> dari panel kiri ke sini untuk memulai.<br>
+          atau klik <strong>"🏗️ Topology Contoh"</strong> di atas.
+        </div>
+      </div>
+      <svg class="cable-layer" id="cableLayer"></svg>
+      <svg class="packet-layer" id="packetLayer"></svg>
+    </div>
+    <div class="context-hint" id="contextHint"></div>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-line active"></div> Subnet sama</div>
+      <div class="legend-item"><div class="legend-line invalid"></div> Subnet beda</div>
+      <div class="legend-item"><div class="legend-line l2-link"></div> L2 Link (switch)</div>
+    </div>
+
+    <div class="bottombar">
+      <div class="item"><span class="status-dot" id="statusDot"></span> <span id="statusText">Drag device dari palet untuk memulai</span></div>
+      <div class="item">Device: <span class="highlight" id="statDevices">0</span></div>
+      <div class="item">Kabel: <span class="highlight" id="statCables">0</span></div>
+      <div class="item">Koneksi Aktif: <span class="highlight" id="statActive">0</span></div>
+    </div>
+  </div>
+
+  <div class="properties">
+    <div class="props-header">
+      <span>Properti</span>
+      <span id="propsId" style="color:#1976d2;font-size:0.7rem;font-weight:700;"></span>
+    </div>
+    <div class="props-body" id="propsBody">
+      <div class="props-empty">
+        Pilih perangkat atau kabel di workspace untuk melihat konfigurasi.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="context-menu" id="contextMenu">
+  <div class="context-menu-header" id="ctxHeader">Device: <strong id="ctxDeviceName">-</strong></div>
+  <div id="ctxBody"></div>
+</div>
+
+<!-- Modal Confirm -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <h3 id="modalTitle">Konfirmasi</h3>
+    <p id="modalMessage">Apakah Anda yakin?</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="modalCancel">Batal</button>
+      <button class="btn btn-primary" id="modalConfirm">Ya, Lanjutkan</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ============================================================
+  // STATE
+  // ============================================================
+  const state = {
+    devices: [],
+    cables: [],
+    selectedId: null,
+    selectedCableId: null,
+    connectMode: false,
+    connectSourceId: null,
+    deleteMode: false,
+    nextId: 1,
+    nextCableId: 1,
+    isDragging: false,
+    dragDeviceId: null,
+    dragOffsetX: 0,
+    dragOffsetY: 0,
+    dragMoved: false,
+    activePingNode: null,
+    activePingTarget: null,
+    isPinging: false,
+    ipModes: {},
+  };
+
+  const DEVICE_CONFIG = {
+    pc:     { icon: '💻', label: 'PC',     layer: 'host', needsIP: true,  subnet: '192.168.1', ports: 1  },
+    laptop: { icon: '💽', label: 'Laptop', layer: 'host', needsIP: true,  subnet: '192.168.1', ports: 1  },
+    switch: { icon: '🔀', label: 'Switch', layer: 'l2',   needsIP: false, subnet: null,        ports: 24 },
+    router: { icon: '📡', label: 'Router', layer: 'l3',   needsIP: true,  subnet: '192.168.1', ports: 4  },
+    server: { icon: '🖥️', label: 'Server', layer: 'host', needsIP: true,  subnet: '192.168.1', ports: 1  },
+  };
+
+  const typeCounters = { pc: 0, laptop: 0, switch: 0, router: 0, server: 0 };
+
+  const workspace = document.getElementById('workspace');
+  const cableLayer = document.getElementById('cableLayer');
+  const packetLayer = document.getElementById('packetLayer');
+  const emptyState = document.getElementById('emptyState');
+  const propsBody = document.getElementById('propsBody');
+  const propsId = document.getElementById('propsId');
+  const statDevices = document.getElementById('statDevices');
+  const statCables = document.getElementById('statCables');
+  const statActive = document.getElementById('statActive');
+  const statusText = document.getElementById('statusText');
+  const statusDot = document.getElementById('statusDot');
+  const modeBadge = document.getElementById('modeBadge');
+  const contextHint = document.getElementById('contextHint');
+  const toastContainer = document.getElementById('toastContainer');
+  const contextMenu = document.getElementById('contextMenu');
+  const ctxDeviceName = document.getElementById('ctxDeviceName');
+  const ctxBody = document.getElementById('ctxBody');
+
+  // Modal
+  const modalOverlay = document.getElementById('modalOverlay');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalMessage = document.getElementById('modalMessage');
+  const modalConfirm = document.getElementById('modalConfirm');
+  const modalCancel = document.getElementById('modalCancel');
+
+  // ============================================================
+  // MODAL CONFIRM (custom, non-blocking)
+  // ============================================================
+  let modalResolver = null;
+
+  function showConfirm(title, message, onConfirm) {
+    modalTitle.textContent = title;
+    modalMessage.textContent = message;
+    modalOverlay.classList.add('show');
+    modalResolver = onConfirm;
+  }
+
+  function closeModal() {
+    modalOverlay.classList.remove('show');
+    modalResolver = null;
+  }
+
+  modalConfirm.addEventListener('click', () => {
+    const cb = modalResolver;
+    closeModal();
+    if (cb) cb();
+  });
+  modalCancel.addEventListener('click', closeModal);
+  modalOverlay.addEventListener('click', (e) => {
+    if (e.target === modalOverlay) closeModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modalOverlay.classList.contains('show')) {
+      closeModal();
+    }
+  });
+
+  // ============================================================
+  // UTIL — IP / SUBNET
+  // ============================================================
+  function isValidIP(ip) {
+    if (!ip || typeof ip !== 'string') return false;
+    const parts = ip.trim().split('.');
+    if (parts.length !== 4) return false;
+    return parts.every(p => {
+      const n = Number(p);
+      return Number.isInteger(n) && n >= 0 && n <= 255 && String(n) === p;
+    });
+  }
+
+  function ipToInt(ip) {
+    if (!isValidIP(ip)) return null;
+    const parts = ip.split('.').map(Number);
+    return ((parts[0] << 24) >>> 0) + (parts[1] << 16) + (parts[2] << 8) + parts[3];
+  }
+
+  function intToIP(int) {
+    return [(int >>> 24) & 255, (int >>> 16) & 255, (int >>> 8) & 255, int & 255].join('.');
+  }
+
+  function isValidMaskDecimal(mask) {
+    if (!isValidIP(mask)) return false;
+    const intMask = ipToInt(mask);
+    const inverted = (~intMask) >>> 0;
+    if (inverted === 0) return true;
+    return ((inverted + 1) & inverted) === 0;
+  }
+
+  function cidrToDecimal(cidr) {
+    if (cidr < 0 || cidr > 32) return null;
+    if (cidr === 0) return '0.0.0.0';
+    const mask = (0xFFFFFFFF << (32 - cidr)) >>> 0;
+    return intToIP(mask);
+  }
+
+  function decimalToCidr(mask) {
+    if (!isValidMaskDecimal(mask)) return null;
+    const intMask = ipToInt(mask);
+    let count = 0;
+    for (let i = 31; i >= 0; i--) {
+      if ((intMask >>> i) & 1) count++;
+      else break;
+    }
+    return count;
+  }
+
+  function isValidCidr(cidr) {
+    const n = Number(cidr);
+    return Number.isInteger(n) && n >= 0 && n <= 32;
+  }
+
+  function getNetworkAddress(ip, maskDecimal) {
+    if (!isValidIP(ip) || !isValidMaskDecimal(maskDecimal)) return null;
+    const ipInt = ipToInt(ip);
+    const maskInt = ipToInt(maskDecimal);
+    return intToIP((ipInt & maskInt) >>> 0);
+  }
+
+  function getBroadcastAddress(ip, maskDecimal) {
+    if (!isValidIP(ip) || !isValidMaskDecimal(maskDecimal)) return null;
+    const ipInt = ipToInt(ip);
+    const maskInt = ipToInt(maskDecimal);
+    return intToIP(((ipInt & maskInt) | (~maskInt >>> 0)) >>> 0);
+  }
+
+  function getHostCount(maskDecimal) {
+    if (!isValidMaskDecimal(maskDecimal)) return 0;
+    const hostBits = 32 - decimalToCidr(maskDecimal);
+    if (hostBits <= 1) return 0;
+    return Math.pow(2, hostBits) - 2;
+  }
+
+  function isSameSubnet(devA, devB) {
+    if (!devA.ip || !devB.ip) return false;
+    if (!devA.mask || !devB.mask) return false;
+    if (!isValidIP(devA.ip) || !isValidIP(devB.ip)) return false;
+    if (!isValidMaskDecimal(devA.mask) || !isValidMaskDecimal(devB.mask)) return false;
+    if (devA.mask !== devB.mask) return false;
+    const netA = getNetworkAddress(devA.ip, devA.mask);
+    const netB = getNetworkAddress(devB.ip, devB.mask);
+    return netA !== null && netA === netB;
+  }
+
+  function parseIPInput(input, mode, maskInput) {
+    input = (input || '').trim();
+    if (!input) return { error: 'IP tidak boleh kosong' };
+
+    if (mode === 'cidr') {
+      const parts = input.split('/');
+      if (parts.length !== 2) return { error: 'Format CIDR harus: x.x.x.x/nn' };
+      const ip = parts[0].trim();
+      const cidrStr = parts[1].trim();
+      if (!isValidIP(ip)) return { error: 'Format IP tidak valid (contoh: 192.168.1.10)' };
+      if (!isValidCidr(cidrStr)) return { error: 'CIDR harus angka 0-32' };
+      const cidr = Number(cidrStr);
+      const mask = cidrToDecimal(cidr);
+      return { ip, mask, cidr, error: null };
+    } else {
+      if (!isValidIP(input)) return { error: 'Format IP tidak valid (contoh: 192.168.1.10)' };
+      const mask = (maskInput || '').trim();
+      if (!isValidIP(mask)) return { error: 'Format Subnet Mask tidak valid' };
+      if (!isValidMaskDecimal(mask)) return { error: 'Subnet Mask harus berurutan (contoh: 255.255.255.0)' };
+      const cidr = decimalToCidr(mask);
+      return { ip: input, mask, cidr, error: null };
+    }
+  }
+
+  function showToast(msg, type = 'info', duration = 3000) {
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.textContent = msg;
+    toastContainer.appendChild(t);
+    setTimeout(() => {
+      t.style.transition = 'opacity 0.3s, transform 0.3s';
+      t.style.opacity = '0';
+      t.style.transform = 'translateX(30px)';
+      setTimeout(() => t.remove(), 300);
+    }, duration);
+  }
+
+  function showHint(msg, isError = false) {
+    contextHint.textContent = msg;
+    contextHint.classList.toggle('error', isError);
+    contextHint.classList.add('show');
+    clearTimeout(showHint._t);
+    showHint._t = setTimeout(() => contextHint.classList.remove('show'), 2800);
+  }
+
+  function randomHost() { return Math.floor(Math.random() * 253) + 1; }
+
+  function randomMAC() {
+    const hex = '0123456789ABCDEF';
+    let mac = '00:1A:2B:';
+    for (let i = 0; i < 3; i++) {
+      mac += hex[Math.floor(Math.random() * 16)] + hex[Math.floor(Math.random() * 16)];
+      if (i < 2) mac += ':';
+    }
+    return mac;
+  }
+
+  function getDevice(id) { return state.devices.find(d => d.id === id); }
+  function getCable(id) { return state.cables.find(c => c.id === id); }
+
+  function getUsedPorts(deviceId) {
+    return state.cables.filter(c => c.fromId === deviceId || c.toId === deviceId).length;
+  }
+
+  function hasFreePort(deviceId) {
+    const dev = getDevice(deviceId);
+    if (!dev) return false;
+    return getUsedPorts(deviceId) < DEVICE_CONFIG[dev.type].ports;
+  }
+
+  function isPortFull(deviceId) {
+    const dev = getDevice(deviceId);
+    if (!dev) return false;
+    return getUsedPorts(deviceId) >= DEVICE_CONFIG[dev.type].ports;
+  }
+
+  function canCommunicate(devA, devB) {
+    if (devA.type === 'switch' || devB.type === 'switch') return false;
+    return isSameSubnet(devA, devB);
+  }
+
+  function isCableActive(cable) {
+    const a = getDevice(cable.fromId), b = getDevice(cable.toId);
+    if (!a || !b) return false;
+    if (a.type === 'switch' || b.type === 'switch') return false;
+    return canCommunicate(a, b);
+  }
+
+  function isCableInvalid(cable) {
+    const a = getDevice(cable.fromId), b = getDevice(cable.toId);
+    if (!a || !b) return false;
+    if (a.type === 'switch' || b.type === 'switch') return false;
+    if (!a.ip || !b.ip) return false;
+    return !canCommunicate(a, b);
+  }
+
+  function isCableL2(cable) {
+    const a = getDevice(cable.fromId), b = getDevice(cable.toId);
+    if (!a || !b) return false;
+    return (a.type === 'switch' || b.type === 'switch') && !(a.type === 'switch' && b.type === 'switch');
+  }
+
+  // ============================================================
+  // RESET STATE — Dipakai oleh tombol "Baru"
+  // ============================================================
+  function resetWorkspace() {
+    // Hentikan semua animasi yang sedang berjalan (jika ada)
+    state.isPinging = false;
+    state.activePingNode = null;
+    state.activePingTarget = null;
+
+    // Reset devices & cables
+    state.devices = [];
+    state.cables = [];
+    state.selectedId = null;
+    state.selectedCableId = null;
+    state.connectSourceId = null;
+    state.connectMode = false;
+    state.deleteMode = false;
+    state.nextId = 1;
+    state.nextCableId = 1;
+    state.ipModes = {};
+
+    // Reset type counters
+    Object.keys(typeCounters).forEach(k => typeCounters[k] = 0);
+
+    // Bersihkan layer animasi & kabel
+    cableLayer.innerHTML = '';
+    packetLayer.innerHTML = '';
+
+    // Reset UI mode
+    setModeVisual('select');
+
+    renderAll();
+  }
+
+  // ============================================================
+  // LOAD TOPOLOGY CONTOH
+  // ============================================================
+  function loadDemoTopology() {
+    resetWorkspace();
+
+    // Buat topology: 1 Switch + 3 PC
+    const sw = { id: state.nextId++, type: 'switch', name: 'Switch1', ip: null, mask: null, mac: '00:1A:2B:00:00:01', x: 440, y: 280 };
+    const pc1 = { id: state.nextId++, type: 'pc', name: 'PC1', ip: '192.168.1.10', mask: '255.255.255.0', mac: '00:1A:2B:AA:BB:01', x: 130, y: 90 };
+    const pc2 = { id: state.nextId++, type: 'pc', name: 'PC2', ip: '192.168.1.11', mask: '255.255.255.0', mac: '00:1A:2B:AA:BB:02', x: 130, y: 420 };
+    const pc3 = { id: state.nextId++, type: 'pc', name: 'PC3', ip: '192.168.2.10', mask: '255.255.255.0', mac: '00:1A:2B:AA:BB:03', x: 750, y: 280 };
+
+    state.devices.push(sw, pc1, pc2, pc3);
+    state.cables.push(
+      { id: state.nextCableId++, fromId: pc1.id, toId: sw.id },
+      { id: state.nextCableId++, fromId: pc2.id, toId: sw.id },
+      { id: state.nextCableId++, fromId: pc3.id, toId: sw.id }
+    );
+
+    typeCounters.switch = 1;
+    typeCounters.pc = 3;
+
+    renderAll();
+    showToast('🏗️ Topology contoh dimuat: 1 Switch + 3 PC', 'success', 3500);
+  }
+
+  // ============================================================
+  // RENDER NODES
+  // ============================================================
+  function renderNodes() {
+    workspace.querySelectorAll('.node').forEach(n => n.remove());
+
+    state.devices.forEach(dev => {
+      const cfg = DEVICE_CONFIG[dev.type] || DEVICE_CONFIG.pc;
+      const node = document.createElement('div');
+      node.className = 'node';
+      if (dev.id === state.selectedId) node.classList.add('selected');
+      if (state.connectMode && dev.id === state.connectSourceId) node.classList.add('connecting');
+      if (state.activePingNode === dev.id) node.classList.add('ping-source');
+      if (state.activePingTarget === dev.id) node.classList.add('ping-target');
+      if (cfg.ports <= 4 && isPortFull(dev.id)) node.classList.add('port-full');
+
+      node.style.left = dev.x + 'px';
+      node.style.top = dev.y + 'px';
+      node.dataset.id = dev.id;
+
+      let layerClass = 'host';
+      if (cfg.layer === 'l2') layerClass = 'l2';
+      else if (cfg.layer === 'l3') layerClass = 'l3';
+      const layerLabel = cfg.layer === 'l2' ? 'L2' : (cfg.layer === 'l3' ? 'L3' : 'HOST');
+
+      let ipDisplay = '';
+      if (dev.ip) {
+        const cidr = dev.mask ? decimalToCidr(dev.mask) : null;
+        const cidrSuffix = (cidr !== null && cidr !== undefined) ? `/${cidr}` : '';
+        ipDisplay = `<div class="node-ip">${dev.ip}${cidrSuffix}</div>`;
+      } else {
+        ipDisplay = `<div class="node-ip none">no IP</div>`;
+      }
+
+      let subnetDisplay = '';
+      if (dev.mask && cfg.needsIP) {
+        subnetDisplay = `<div class="node-subnet">${dev.mask}</div>`;
+      }
+
+      const used = getUsedPorts(dev.id);
+      const total = cfg.ports;
+      const portClass = used >= total ? 'full' : '';
+
+      node.innerHTML = `
+        <div class="layer-badge ${layerClass}">${layerLabel}</div>
+        <div class="node-icon">${cfg.icon}</div>
+        <div class="node-label">${dev.name}</div>
+        ${ipDisplay}
+        ${subnetDisplay}
+        <div class="node-ports ${portClass}">🔌 ${used}/${total}</div>
+      `;
+
+      node.addEventListener('pointerdown', onNodePointerDown);
+      node.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openContextMenuForDevice(dev.id, e.clientX, e.clientY);
+      });
+
+      workspace.appendChild(node);
+    });
+  }
+
+  function updateNodeClasses() {
+    state.devices.forEach(dev => {
+      const node = workspace.querySelector(`.node[data-id="${dev.id}"]`);
+      if (!node) return;
+      node.classList.toggle('ping-source', state.activePingNode === dev.id);
+      node.classList.toggle('ping-target', state.activePingTarget === dev.id);
+    });
+  }
+
+  function updateNodePosition(deviceId) {
+    const dev = getDevice(deviceId);
+    if (!dev) return;
+    const node = workspace.querySelector(`.node[data-id="${deviceId}"]`);
+    if (node) {
+      node.style.left = dev.x + 'px';
+      node.style.top = dev.y + 'px';
+    }
+  }
+
+  // ============================================================
+  // RENDER CABLES
+  // ============================================================
+  function renderCables() {
+    cableLayer.innerHTML = '';
+
+    state.cables.forEach(cable => {
+      const from = getDevice(cable.fromId);
+      const to = getDevice(cable.toId);
+      if (!from || !to) return;
+
+      const c1 = { x: from.x + 48, y: from.y + 48 };
+      const c2 = { x: to.x + 48, y: to.y + 48 };
+      const dx = c2.x - c1.x, dy = c2.y - c1.y;
+      const len = Math.sqrt(dx*dx + dy*dy) || 1;
+      const ux = dx / len, uy = dy / len;
+      const p1 = { x: c1.x + ux * 48, y: c1.y + uy * 48 };
+      const p2 = { x: c2.x - ux * 48, y: c2.y - uy * 48 };
+
+      const valid = isCableActive(cable);
+      const invalid = isCableInvalid(cable);
+      const l2Link = isCableL2(cable);
+      const isSelected = cable.id === state.selectedCableId;
+
+      const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      shadow.setAttribute('x1', p1.x); shadow.setAttribute('y1', p1.y);
+      shadow.setAttribute('x2', p2.x); shadow.setAttribute('y2', p2.y);
+      shadow.setAttribute('class', 'cable-shadow');
+      cableLayer.appendChild(shadow);
+
+      const hitarea = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      hitarea.setAttribute('x1', p1.x); hitarea.setAttribute('y1', p1.y);
+      hitarea.setAttribute('x2', p2.x); hitarea.setAttribute('y2', p2.y);
+      hitarea.setAttribute('class', 'cable-hitarea');
+      hitarea.style.pointerEvents = 'stroke';
+      cableLayer.appendChild(hitarea);
+
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', p1.x); line.setAttribute('y1', p1.y);
+      line.setAttribute('x2', p2.x); line.setAttribute('y2', p2.y);
+      let cableClass = 'cable';
+      if (l2Link) cableClass += ' l2-link';
+      else if (valid) cableClass += ' active';
+      else if (invalid) cableClass += ' invalid';
+      if (isSelected) cableClass += ' selected';
+      line.setAttribute('class', cableClass);
+      line.style.pointerEvents = 'stroke';
+      cableLayer.appendChild(line);
+
+      [ {x: p1.x, y: p1.y}, {x: p2.x, y: p2.y} ].forEach(pt => {
+        const conn = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        conn.setAttribute('cx', pt.x); conn.setAttribute('cy', pt.y);
+        conn.setAttribute('r', 6);
+        let connClass = 'cable-connector';
+        if (l2Link) connClass += ' l2-link';
+        else if (valid) connClass += ' active';
+        else if (invalid) connClass += ' invalid';
+        conn.setAttribute('class', connClass);
+        cableLayer.appendChild(conn);
+      });
+
+      const midX = (p1.x + p2.x) / 2;
+      const midY = (p1.y + p2.y) / 2;
+      const symbol = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      symbol.setAttribute('x', midX); symbol.setAttribute('y', midY + 5);
+      symbol.setAttribute('text-anchor', 'middle');
+      symbol.setAttribute('font-size', '13');
+      symbol.setAttribute('font-weight', '900');
+      let symColor = '#94a3b8', symText = '•';
+      if (l2Link) { symColor = '#ea580c'; symText = 'L2'; }
+      else if (valid) { symColor = '#16a34a'; symText = '✓'; }
+      else if (invalid) { symColor = '#dc2626'; symText = '✕'; }
+      symbol.setAttribute('fill', symColor);
+      symbol.textContent = symText;
+      symbol.style.pointerEvents = 'none';
+      cableLayer.appendChild(symbol);
+
+      hitarea.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectCable(cable.id);
+      });
+      hitarea.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openContextMenuForCable(cable.id, e.clientX, e.clientY);
+      });
+    });
+  }
+
+  function selectCable(cableId) {
+    state.selectedCableId = cableId;
+    state.selectedId = null;
+    renderAll();
+  }
+
+  function renderAll() {
+    renderNodes();
+    renderCables();
+    updateStats();
+    renderProperties();
+    updateEmptyState();
+  }
+
+  function updateEmptyState() {
+    emptyState.style.display = state.devices.length === 0 ? 'block' : 'none';
+  }
+
+  function updateStats() {
+    statDevices.textContent = state.devices.length;
+    statCables.textContent = state.cables.length;
+    let active = 0;
+    state.cables.forEach(c => { if (isCableActive(c) || isCableL2(c)) active++; });
+    statActive.textContent = active;
+  }
+
+  function setSimulatingUI(isSim) {
+    if (isSim) {
+      modeBadge.textContent = 'SIMULASI PING...';
+      modeBadge.classList.add('simulating');
+      statusDot.classList.add('simulating');
+      statusText.textContent = 'Simulasi berjalan — device tetap bisa digeser';
+    } else {
+      modeBadge.textContent = state.connectMode ? 'MODE: KABEL' : (state.deleteMode ? 'MODE: HAPUS' : 'MODE: PILIH');
+      modeBadge.classList.remove('simulating');
+      statusDot.classList.remove('simulating');
+      statusText.textContent = 'Drag device untuk pindah · Klik kanan untuk menu';
+    }
+  }
+
+  // ============================================================
+  // PROPERTIES
+  // ============================================================
+  function renderProperties() {
+    if (state.selectedCableId !== null) { renderCableProperties(); return; }
+
+    if (!state.selectedId) {
+      propsId.textContent = '';
+      propsBody.innerHTML = `<div class="props-empty">Pilih perangkat atau kabel di workspace untuk melihat konfigurasi.</div>`;
+      return;
+    }
+
+    const dev = getDevice(state.selectedId);
+    if (!dev) { state.selectedId = null; renderProperties(); return; }
+
+    const cfg = DEVICE_CONFIG[dev.type] || DEVICE_CONFIG.pc;
+    propsId.textContent = `#${dev.id}`;
+
+    let layerInfo = '';
+    if (cfg.layer === 'l2') {
+      layerInfo = `<div class="info-box warning"><strong>Layer 2 (Data Link)</strong> · ${cfg.ports} Port<br>Switch <strong>tidak memerlukan alamat IP</strong>.</div>`;
+    } else if (cfg.layer === 'l3') {
+      layerInfo = `<div class="info-box success"><strong>Layer 3 (Network)</strong> · ${cfg.ports} Port<br>Router <strong>memerlukan alamat IP + subnet mask</strong>.</div>`;
+    } else {
+      layerInfo = `<div class="info-box"><strong>Host (End Device)</strong> · <span style="color:#ea580c;font-weight:700;">${cfg.ports} Port NIC</span><br>Hanya dapat terhubung ke <strong>1 kabel</strong>.</div>`;
+    }
+
+    const neighbors = state.cables
+      .filter(c => c.fromId === dev.id || c.toId === dev.id)
+      .map(c => c.fromId === dev.id ? c.toId : c.fromId)
+      .map(id => getDevice(id))
+      .filter(Boolean);
+
+    const reachable = neighbors.filter(n => canCommunicate(dev, n));
+    const usedPorts = getUsedPorts(dev.id);
+    const freePorts = cfg.ports - usedPorts;
+
+    let portGrid = '<div class="port-grid">';
+    const displayPorts = Math.min(cfg.ports, 24);
+    for (let i = 0; i < displayPorts; i++) {
+      const isUsed = i < usedPorts;
+      portGrid += `<div class="port-cell ${isUsed ? 'used' : ''}">${i+1}</div>`;
+    }
+    portGrid += '</div>';
+
+    let neighborList = '';
+    if (neighbors.length > 0) {
+      neighborList = '<div style="margin-top:10px;font-size:0.7rem;color:#718096;font-weight:600;">TERHUBUNG KE:</div>';
+      neighbors.forEach(n => {
+        const canTalk = canCommunicate(dev, n);
+        const isSwitch = n.type === 'switch';
+        let bg, border, textColor, note;
+        if (isSwitch) { bg = '#fff7ed'; border = '#ea580c'; textColor = '#ea580c'; note = 'L2'; }
+        else if (canTalk) { bg = '#f0fdf4'; border = '#22c55e'; textColor = '#16a34a'; note = n.ip; }
+        else { bg = '#fef2f2'; border = '#ef4444'; textColor = '#dc2626'; note = n.ip || 'no IP'; }
+        neighborList += `<div style="display:flex;justify-content:space-between;padding:6px 8px;background:${bg};border-radius:5px;margin-top:4px;font-size:0.72rem;border-left:3px solid ${border};"><span style="font-weight:600;color:#2d3748;">${n.name}</span><span style="font-family:monospace;color:${textColor};">${note}</span></div>`;
+      });
+    }
+
+    const ipMode = state.ipModes[dev.id] || 'cidr';
+
+    let cidrValue = '';
+    let decimalIP = '';
+    let decimalMask = dev.mask || '';
+
+    if (dev.ip) {
+      const cidr = dev.mask ? decimalToCidr(dev.mask) : null;
+      cidrValue = (cidr !== null && cidr !== undefined) ? `${dev.ip}/${cidr}` : dev.ip;
+      decimalIP = dev.ip;
+    }
+
+    let ipFieldHTML = '';
+    if (cfg.needsIP) {
+      ipFieldHTML += `
+        <div class="field">
+          <label>Mode Input IP</label>
+          <div class="ip-mode-toggle" id="ipModeToggle">
+            <button data-mode="cidr" class="${ipMode === 'cidr' ? 'active' : ''}">CIDR (x.x.x.x/nn)</button>
+            <button data-mode="decimal" class="${ipMode === 'decimal' ? 'active' : ''}">Decimal + Mask</button>
+          </div>
+        </div>
+      `;
+
+      if (ipMode === 'cidr') {
+        ipFieldHTML += `
+          <div class="field">
+            <label>IP Address / CIDR</label>
+            <input type="text" id="propIpCidr" value="${cidrValue}" placeholder="192.168.1.10/24" autocomplete="off">
+            <div class="field-hint" id="hintCidr">Format: IP/CIDR · contoh: 192.168.1.10/24</div>
+          </div>
+        `;
+      } else {
+        ipFieldHTML += `
+          <div class="field">
+            <label>IP Address</label>
+            <input type="text" id="propIpDec" value="${decimalIP}" placeholder="192.168.1.10" autocomplete="off">
+            <div class="field-hint" id="hintIpDec">Format: 4 oktet dipisah titik</div>
+          </div>
+          <div class="field">
+            <label>Subnet Mask</label>
+            <input type="text" id="propMaskDec" value="${decimalMask}" placeholder="255.255.255.0" autocomplete="off">
+            <div class="field-hint" id="hintMaskDec">Format: 4 oktet, contoh: 255.255.255.0</div>
+          </div>
+        `;
+      }
+    } else {
+      ipFieldHTML += `
+        <div class="field">
+          <label>Alamat IP (Switch tidak butuh IP)</label>
+          <input type="text" value="—" disabled>
+        </div>
+      `;
+    }
+
+    let previewHTML = '';
+    if (cfg.needsIP && dev.ip && dev.mask && isValidIP(dev.ip) && isValidMaskDecimal(dev.mask)) {
+      const netAddr = getNetworkAddress(dev.ip, dev.mask);
+      const broadcast = getBroadcastAddress(dev.ip, dev.mask);
+      const cidr = decimalToCidr(dev.mask);
+      const hostCount = getHostCount(dev.mask);
+
+      const octets = dev.ip.split('.');
+      const maskOctets = dev.mask.split('.');
+      let octetViz = '';
+      octets.forEach((oct, i) => {
+        const isNetOctet = Number(maskOctets[i]) === 255;
+        const isHostOctet = Number(maskOctets[i]) === 0;
+        let cls = 'host';
+        if (isNetOctet) cls = 'network';
+        else if (isHostOctet) cls = 'host';
+        else cls = 'network';
+        octetViz += `<div class="subnet-octet ${cls}">${oct}</div>`;
+        if (i < 3) octetViz += `<span class="subnet-dot">.</span>`;
+      });
+
+      let rangeStr = '—';
+      if (hostCount > 0) {
+        const netInt = ipToInt(netAddr);
+        const broadInt = ipToInt(broadcast);
+        rangeStr = `${intToIP((netInt + 1) >>> 0)} - ${intToIP((broadInt - 1) >>> 0)}`;
+      }
+
+      previewHTML = `
+        <div class="ip-preview">
+          <div><span class="label">Network:</span> <strong>${netAddr}/${cidr}</strong></div>
+          <div><span class="label">Broadcast:</span> <strong>${broadcast}</strong></div>
+          <div><span class="label">Range Host:</span> <strong>${rangeStr}</strong></div>
+          <div><span class="label">Jumlah Host:</span> <strong>${hostCount}</strong></div>
+          <div style="margin-top:6px;font-size:0.62rem;color:#64748b;">
+            <span style="color:#16a34a;">■</span> Network &nbsp;
+            <span style="color:#94a3b8;">■</span> Host
+          </div>
+          <div class="subnet-viz">${octetViz}</div>
+        </div>
+      `;
+    } else if (cfg.needsIP) {
+      previewHTML = `
+        <div class="ip-preview error">
+          <strong>⚠ IP / Subnet belum diisi dengan benar</strong><br>
+          <span style="font-size:0.65rem;">Isi IP dan subnet mask untuk melihat detail network.</span>
+        </div>
+      `;
+    }
+
+    let portWarning = '';
+    if (freePorts === 0 && cfg.ports <= 4) {
+      portWarning = `<div class="info-box danger"><strong>⛔ Semua port terpakai!</strong></div>`;
+    }
+
+    propsBody.innerHTML = `
+      <div class="props-title"><span>${cfg.icon}</span><span>${dev.name}</span></div>
+      <div class="props-sub">
+        Tipe: <strong style="color:#2d3748">${cfg.label}</strong> · 
+        Layer: <strong style="color:${cfg.layer === 'l2' ? '#ea580c' : (cfg.layer === 'l3' ? '#16a34a' : '#1976d2')}">${cfg.layer.toUpperCase()}</strong><br>
+        Port: <strong style="color:${freePorts === 0 ? '#dc2626' : '#16a34a'}">${usedPorts}/${cfg.ports} terpakai</strong>
+      </div>
+      ${layerInfo}
+      ${portWarning}
+      <div class="field"><label>Nama Device</label><input type="text" id="propName" value="${dev.name}" autocomplete="off"></div>
+      ${ipFieldHTML}
+      ${previewHTML}
+      <div class="field"><label>MAC Address</label><input type="text" value="${dev.mac || '-'}" disabled style="font-size:0.75rem;"></div>
+      <div class="field"><label>Status Port (${usedPorts}/${cfg.ports})</label>${portGrid}</div>
+      <button class="btn btn-primary" id="btnApply">✓ Terapkan</button>
+      ${cfg.needsIP ? `<button class="btn btn-success" id="btnPing" ${neighbors.length===0?'disabled':''}>📡 Ping ke Neighbor</button>` : ''}
+      <button class="btn btn-warning" id="btnPingAll" ${state.devices.length<2?'disabled':''}>🌐 Ping Semua</button>
+      <button class="btn btn-danger" id="btnDelete">🗑️ Hapus Device</button>
+      ${neighborList}
+    `;
+
+    const ipModeToggle = document.getElementById('ipModeToggle');
+    if (ipModeToggle) {
+      ipModeToggle.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const newMode = btn.dataset.mode;
+          if (newMode === ipMode) return;
+          state.ipModes[dev.id] = newMode;
+          renderProperties();
+        });
+      });
+    }
+
+    if (ipMode === 'cidr') {
+      const input = document.getElementById('propIpCidr');
+      const hint = document.getElementById('hintCidr');
+      if (input) {
+        input.addEventListener('input', () => {
+          const val = input.value.trim();
+          if (!val) {
+            input.classList.remove('error', 'valid');
+            hint.className = 'field-hint';
+            hint.textContent = 'Format: IP/CIDR · contoh: 192.168.1.10/24';
+            return;
+          }
+          const result = parseIPInput(val, 'cidr');
+          if (result.error) {
+            input.classList.add('error');
+            input.classList.remove('valid');
+            hint.className = 'field-hint error';
+            hint.textContent = '⚠ ' + result.error;
+          } else {
+            input.classList.remove('error');
+            input.classList.add('valid');
+            hint.className = 'field-hint valid';
+            hint.textContent = `✓ IP: ${result.ip} · Mask: ${result.mask} (/${result.cidr})`;
+          }
+        });
+      }
+    } else {
+      const ipInput = document.getElementById('propIpDec');
+      const maskInput = document.getElementById('propMaskDec');
+      const ipHint = document.getElementById('hintIpDec');
+      const maskHint = document.getElementById('hintMaskDec');
+
+      const validateAll = () => {
+        if (!ipInput || !maskInput) return;
+        const ipVal = ipInput.value.trim();
+        const maskVal = maskInput.value.trim();
+
+        if (!ipVal) {
+          ipInput.classList.remove('error', 'valid');
+          ipHint.className = 'field-hint';
+          ipHint.textContent = 'Format: 4 oktet dipisah titik';
+        } else if (!isValidIP(ipVal)) {
+          ipInput.classList.add('error');
+          ipInput.classList.remove('valid');
+          ipHint.className = 'field-hint error';
+          ipHint.textContent = '⚠ Format IP tidak valid';
+        } else {
+          ipInput.classList.remove('error');
+          ipInput.classList.add('valid');
+          ipHint.className = 'field-hint valid';
+          ipHint.textContent = `✓ IP valid`;
+        }
+
+        if (!maskVal) {
+          maskInput.classList.remove('error', 'valid');
+          maskHint.className = 'field-hint';
+          maskHint.textContent = 'Format: 4 oktet, contoh: 255.255.255.0';
+        } else if (!isValidIP(maskVal)) {
+          maskInput.classList.add('error');
+          maskInput.classList.remove('valid');
+          maskHint.className = 'field-hint error';
+          maskHint.textContent = '⚠ Format mask tidak valid';
+        } else if (!isValidMaskDecimal(maskVal)) {
+          maskInput.classList.add('error');
+          maskInput.classList.remove('valid');
+          maskHint.className = 'field-hint error';
+          maskHint.textContent = '⚠ Mask harus berurutan 1 lalu 0 (contoh: 255.255.255.0)';
+        } else {
+          maskInput.classList.remove('error');
+          maskInput.classList.add('valid');
+          const cidr = decimalToCidr(maskVal);
+          const hosts = getHostCount(maskVal);
+          maskHint.className = 'field-hint valid';
+          maskHint.textContent = `✓ /${cidr} · ${hosts} host`;
+        }
+      };
+
+      if (ipInput) ipInput.addEventListener('input', validateAll);
+      if (maskInput) maskInput.addEventListener('input', validateAll);
+    }
+
+    document.getElementById('btnApply').addEventListener('click', () => {
+      const newName = document.getElementById('propName').value.trim();
+      if (!newName) { showToast('Nama tidak boleh kosong', 'error'); return; }
+
+      if (cfg.needsIP) {
+        let parseResult;
+        if (ipMode === 'cidr') {
+          const ipInput = document.getElementById('propIpCidr');
+          parseResult = parseIPInput(ipInput.value, 'cidr');
+        } else {
+          const ipInput = document.getElementById('propIpDec');
+          const maskInput = document.getElementById('propMaskDec');
+          parseResult = parseIPInput(ipInput.value, 'decimal', maskInput.value);
+        }
+
+        if (parseResult.error) {
+          showToast(parseResult.error, 'error');
+          return;
+        }
+
+        dev.ip = parseResult.ip;
+        dev.mask = parseResult.mask;
+      }
+
+      dev.name = newName;
+
+      const cidr = dev.mask ? decimalToCidr(dev.mask) : '';
+      showToast(`✓ ${newName} → ${dev.ip}${cidr ? '/' + cidr : ''} (mask: ${dev.mask})`, 'success', 3500);
+      renderAll();
+    });
+
+    const pingBtn = document.getElementById('btnPing');
+    if (pingBtn) pingBtn.addEventListener('click', () => startPing(dev.id));
+
+    document.getElementById('btnPingAll').addEventListener('click', () => pingFromAll());
+    document.getElementById('btnDelete').addEventListener('click', () => deleteDevice(dev.id));
+  }
+
+  function renderCableProperties() {
+    const cable = getCable(state.selectedCableId);
+    if (!cable) { state.selectedCableId = null; renderProperties(); return; }
+    const a = getDevice(cable.fromId), b = getDevice(cable.toId);
+    if (!a || !b) { state.selectedCableId = null; renderProperties(); return; }
+
+    propsId.textContent = `🔗 Kabel #${cable.id}`;
+    const valid = isCableActive(cable);
+    const l2Link = isCableL2(cable);
+
+    const ipA = a.ip ? `${a.ip}${a.mask ? '/' + decimalToCidr(a.mask) : ''}` : 'no IP';
+    const ipB = b.ip ? `${b.ip}${b.mask ? '/' + decimalToCidr(b.mask) : ''}` : 'no IP';
+
+    let statusInfo = '';
+    if (l2Link) statusInfo = `<div class="info-box warning"><strong>L2 Link</strong><br>Terhubung ke Switch.</div>`;
+    else if (valid) statusInfo = `<div class="info-box success"><strong>✓ Koneksi IP Aktif</strong><br>Subnet sama.</div>`;
+    else statusInfo = `<div class="info-box danger"><strong>✕ Subnet Berbeda</strong></div>`;
+
+    propsBody.innerHTML = `
+      <div class="props-title"><span>🔗</span><span>Kabel #${cable.id}</span></div>
+      <div class="props-sub"><strong>${a.name}</strong> (${ipA})<br>↕<br><strong>${b.name}</strong> (${ipB})</div>
+      ${statusInfo}
+      <button class="btn btn-primary" id="btnCableTest" ${l2Link ? '' : (valid ? '' : 'disabled')}>📡 Test Ping via Kabel</button>
+      <button class="btn btn-warning" id="btnCableSwap">🔄 Tukar Ujung Kabel</button>
+      <button class="btn btn-danger" id="btnCableDelete">🗑️ Hapus Kabel</button>
+    `;
+
+    document.getElementById('btnCableTest').addEventListener('click', () => {
+      if (l2Link) {
+        const switchDev = a.type === 'switch' ? a : b;
+        const endDev = a.type === 'switch' ? b : a;
+        const otherCables = state.cables.filter(c => c.id !== cable.id && (c.fromId === switchDev.id || c.toId === switchDev.id));
+        const candidates = otherCables
+          .map(c => c.fromId === switchDev.id ? c.toId : c.fromId)
+          .map(id => getDevice(id))
+          .filter(d => d && d.id !== endDev.id && d.type !== 'switch' && canCommunicate(endDev, d));
+        if (candidates.length > 0) runPingSequence(endDev, candidates[0]);
+        else showToast('Tidak ada host lain dengan subnet sama', 'warning');
+      } else if (valid) runPingSequence(a, b);
+    });
+
+    document.getElementById('btnCableSwap').addEventListener('click', () => {
+      const tmp = cable.fromId;
+      cable.fromId = cable.toId;
+      cable.toId = tmp;
+      showToast('Ujung kabel ditukar', 'success');
+      renderAll();
+    });
+
+    document.getElementById('btnCableDelete').addEventListener('click', () => deleteCable(cable.id));
+  }
+
+  // ============================================================
+  // DRAG NODE
+  // ============================================================
+  function onNodePointerDown(e) {
+    if (e.button === 2) return;
+    if (e.button !== 0) return;
+
+    const node = e.currentTarget;
+    const id = Number(node.dataset.id);
+    const dev = getDevice(id);
+    if (!dev) return;
+
+    if (state.deleteMode) { e.preventDefault(); deleteDevice(id); return; }
+    if (state.connectMode) { e.preventDefault(); handleConnectClick(id); return; }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const rect = workspace.getBoundingClientRect();
+    state.isDragging = true;
+    state.dragDeviceId = id;
+    state.dragOffsetX = e.clientX - rect.left - dev.x;
+    state.dragOffsetY = e.clientY - rect.top - dev.y;
+    state.dragMoved = false;
+
+    node.classList.add('dragging');
+    node.style.cursor = 'grabbing';
+
+    try { node.setPointerCapture(e.pointerId); } catch(err) {}
+
+    window.addEventListener('pointermove', onGlobalPointerMove);
+    window.addEventListener('pointerup', onGlobalPointerUp);
+    window.addEventListener('pointercancel', onGlobalPointerUp);
+  }
+
+  function onGlobalPointerMove(e) {
+    if (!state.isDragging) return;
+    const dev = getDevice(state.dragDeviceId);
+    if (!dev) return;
+
+    const rect = workspace.getBoundingClientRect();
+    let newX = e.clientX - rect.left - state.dragOffsetX;
+    let newY = e.clientY - rect.top - state.dragOffsetY;
+    newX = Math.max(0, Math.min(rect.width - 96, newX));
+    newY = Math.max(0, Math.min(rect.height - 96, newY));
+
+    if (Math.abs(newX - dev.x) > 1 || Math.abs(newY - dev.y) > 1) {
+      state.dragMoved = true;
+    }
+
+    dev.x = newX;
+    dev.y = newY;
+
+    updateNodePosition(dev.id);
+    renderCables();
+  }
+
+  function onGlobalPointerUp(e) {
+    if (!state.isDragging) return;
+    const node = workspace.querySelector(`.node[data-id="${state.dragDeviceId}"]`);
+    if (node) {
+      node.classList.remove('dragging');
+      node.style.cursor = '';
+      try { node.releasePointerCapture(e.pointerId); } catch(err) {}
+    }
+
+    if (!state.dragMoved && state.dragDeviceId) {
+      state.selectedId = state.dragDeviceId;
+      state.selectedCableId = null;
+      renderAll();
+    }
+
+    state.isDragging = false;
+    state.dragDeviceId = null;
+    state.dragMoved = false;
+
+    window.removeEventListener('pointermove', onGlobalPointerMove);
+    window.removeEventListener('pointerup', onGlobalPointerUp);
+    window.removeEventListener('pointercancel', onGlobalPointerUp);
+  }
+
+  // ============================================================
+  // CONNECT / DELETE
+  // ============================================================
+  function handleConnectClick(id) {
+    const dev = getDevice(id);
+    if (!dev) return;
+
+    if (!state.connectSourceId) {
+      if (!hasFreePort(id)) { showToast(`⛔ ${dev.name} port penuh!`, 'error', 3500); return; }
+      state.connectSourceId = id;
+      state.selectedId = id;
+      showHint(`Pilih device tujuan untuk: ${dev.name}`);
+      renderAll();
+      return;
+    }
+
+    if (state.connectSourceId === id) {
+      state.connectSourceId = null;
+      showHint('Koneksi dibatalkan');
+      renderAll();
+      return;
+    }
+
+    if (!hasFreePort(state.connectSourceId)) {
+      showToast(`⛔ Port source penuh!`, 'error', 3000);
+      state.connectSourceId = null;
+      renderAll();
+      return;
+    }
+
+    if (!hasFreePort(id)) { showToast(`⛔ ${dev.name} port penuh!`, 'error', 3500); return; }
+
+    const exists = state.cables.some(c =>
+      (c.fromId === state.connectSourceId && c.toId === id) ||
+      (c.fromId === id && c.toId === state.connectSourceId)
+    );
+    if (exists) {
+      showToast('Kabel sudah terhubung', 'warning');
+      state.connectSourceId = null;
+      renderAll();
+      return;
+    }
+
+    const source = getDevice(state.connectSourceId);
+    const newCable = { id: state.nextCableId++, fromId: state.connectSourceId, toId: id };
+    state.cables.push(newCable);
+
+    const l2Link = isCableL2(newCable);
+    const valid = isCableActive(newCable);
+
+    if (l2Link) showToast(`✓ Kabel L2: ${source.name} ↔ ${dev.name}`, 'info');
+    else if (valid) showToast(`✓ ${source.name} ↔ ${dev.name} terhubung`, 'success');
+    else showToast(`⚠ ${source.name} ↔ ${dev.name} (subnet berbeda)`, 'warning');
+
+    state.connectSourceId = null;
+    state.selectedId = id;
+    renderAll();
+  }
+
+  function deleteDevice(id) {
+    const dev = getDevice(id);
+    if (!dev) return;
+    state.devices = state.devices.filter(d => d.id !== id);
+    state.cables = state.cables.filter(c => c.fromId !== id && c.toId !== id);
+    if (state.selectedId === id) state.selectedId = null;
+    if (state.connectSourceId === id) state.connectSourceId = null;
+    delete state.ipModes[id];
+    showToast(`${dev.name} dihapus`, 'info');
+    renderAll();
+  }
+
+  function deleteCable(cableId) {
+    const cable = getCable(cableId);
+    if (!cable) return;
+    state.cables = state.cables.filter(c => c.id !== cableId);
+    if (state.selectedCableId === cableId) state.selectedCableId = null;
+    showToast(`Kabel #${cableId} dihapus`, 'info');
+    renderAll();
+  }
+
+  // ============================================================
+  // CONTEXT MENU
+  // ============================================================
+  function openContextMenuForDevice(deviceId, x, y) {
+    const dev = getDevice(deviceId);
+    if (!dev) return;
+
+    state.selectedId = deviceId;
+    state.selectedCableId = null;
+    renderAll();
+
+    const cfg = DEVICE_CONFIG[dev.type] || DEVICE_CONFIG.pc;
+    const neighbors = state.cables
+      .filter(c => c.fromId === dev.id || c.toId === dev.id)
+      .map(c => c.fromId === dev.id ? c.toId : c.fromId)
+      .map(id => getDevice(id))
+      .filter(Boolean);
+
+    const usedPorts = getUsedPorts(dev.id);
+    const freePorts = cfg.ports - usedPorts;
+
+    const cidr = dev.mask ? decimalToCidr(dev.mask) : '';
+    const ipStr = dev.ip ? `${dev.ip}${cidr ? '/' + cidr : ''}` : 'no IP';
+    ctxDeviceName.textContent = `${dev.name} (${ipStr}) · Port ${usedPorts}/${cfg.ports}`;
+
+    let html = '';
+    if (freePorts === 0 && cfg.ports <= 4) {
+      html += `<div class="info-box danger" style="margin:6px 8px;"><strong>⛔ Semua port terpakai!</strong></div>`;
+    } else {
+      html += `<div style="padding:6px 12px;font-size:0.72rem;color:#16a34a;background:#f0fdf4;border-radius:4px;margin:4px 8px;">🔌 Port tersedia: <strong>${freePorts}</strong> dari ${cfg.ports}</div>`;
+    }
+
+    if (cfg.needsIP && neighbors.length > 0) {
+      html += `<div class="ctx-submenu-title">Ping Neighbor</div>`;
+      neighbors.forEach(n => {
+        const canTalk = canCommunicate(dev, n);
+        const isSwitch = n.type === 'switch';
+        let icon, badgeClass, badgeText;
+        if (isSwitch) { icon = '🟠'; badgeClass = 'orange'; badgeText = 'L2'; }
+        else if (canTalk) { icon = '🟢'; badgeClass = 'green'; badgeText = n.ip; }
+        else { icon = '🔴'; badgeClass = 'red'; badgeText = n.ip || 'no IP'; }
+        html += `<div class="ctx-item" data-action="ping-one" data-target="${n.id}"><span class="ctx-icon">${icon}</span><span>Ping ke ${n.name}</span><span class="ctx-badge ${badgeClass}">${badgeText}</span></div>`;
+      });
+      html += `<div class="ctx-divider"></div>`;
+    }
+
+    if (freePorts > 0) {
+      html += `<div class="ctx-item success" data-action="connect"><span class="ctx-icon">🔗</span><span>Hubungkan Kabel ke...</span><span class="ctx-badge green">${freePorts} port</span></div>`;
+    } else {
+      html += `<div class="ctx-item disabled"><span class="ctx-icon">🔗</span><span>Hubungkan Kabel ke...</span><span class="ctx-badge red">PENUH</span></div>`;
+    }
+
+    if (cfg.needsIP) {
+      html += `<div class="ctx-item" data-action="ping-all"><span class="ctx-icon">🌐</span><span>Ping Semua Device</span></div>`;
+    }
+    html += `
+      <div class="ctx-item" data-action="edit"><span class="ctx-icon">✏️</span><span>Edit Konfigurasi</span></div>
+      <div class="ctx-divider"></div>
+      <div class="ctx-item" data-action="duplicate"><span class="ctx-icon">📋</span><span>Duplikat Device</span></div>
+      <div class="ctx-item danger" data-action="delete"><span class="ctx-icon">🗑️</span><span>Hapus Device</span></div>
+    `;
+
+    ctxBody.innerHTML = html;
+    ctxBody.querySelectorAll('[data-action]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (el.classList.contains('disabled')) return;
+        const action = el.dataset.action;
+        const targetId = el.dataset.target ? Number(el.dataset.target) : null;
+        closeContextMenu();
+        handleContextAction(action, deviceId, targetId);
+      });
+    });
+
+    showContextMenuAt(x, y);
+  }
+
+  function openContextMenuForCable(cableId, x, y) {
+    const cable = getCable(cableId);
+    if (!cable) return;
+    state.selectedCableId = cableId;
+    state.selectedId = null;
+    renderAll();
+
+    const a = getDevice(cable.fromId), b = getDevice(cable.toId);
+    if (!a || !b) return;
+
+    const valid = isCableActive(cable);
+    const l2Link = isCableL2(cable);
+    ctxDeviceName.textContent = `Kabel #${cable.id}`;
+
+    let statusBadge = '';
+    if (l2Link) statusBadge = '<span class="ctx-badge orange">L2 LINK</span>';
+    else if (valid) statusBadge = '<span class="ctx-badge green">IP AKTIF</span>';
+
+    let html = `<div class="ctx-submenu-title">Kabel ${a.name} ↔ ${b.name} ${statusBadge}</div>`;
+
+    if (!l2Link && valid) html += `<div class="ctx-item success" data-action="cable-ping"><span class="ctx-icon">📡</span><span>Test Ping via Kabel</span></div>`;
+    else if (l2Link) html += `<div class="ctx-item" data-action="cable-ping-via-switch"><span class="ctx-icon">📡</span><span>Test Ping via Switch</span></div>`;
+
+    html += `
+      <div class="ctx-item" data-action="cable-swap"><span class="ctx-icon">🔄</span><span>Tukar Ujung Kabel</span></div>
+      <div class="ctx-item" data-action="cable-info"><span class="ctx-icon">ℹ️</span><span>Lihat Detail Kabel</span></div>
+      <div class="ctx-divider"></div>
+      <div class="ctx-item danger" data-action="cable-delete"><span class="ctx-icon">🗑️</span><span>Hapus Kabel</span></div>
+    `;
+
+    ctxBody.innerHTML = html;
+    ctxBody.querySelectorAll('[data-action]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const action = el.dataset.action;
+        closeContextMenu();
+        handleCableContextAction(action, cableId);
+      });
+    });
+
+    showContextMenuAt(x, y);
+  }
+
+  function showContextMenuAt(x, y) {
+    const menuWidth = 270;
+    const menuHeight = contextMenu.scrollHeight || 400;
+    let posX = x, posY = y;
+    if (posX + menuWidth > window.innerWidth) posX = window.innerWidth - menuWidth - 10;
+    if (posY + menuHeight > window.innerHeight) posY = window.innerHeight - menuHeight - 10;
+    if (posX < 10) posX = 10;
+    if (posY < 10) posY = 10;
+    contextMenu.style.left = posX + 'px';
+    contextMenu.style.top = posY + 'px';
+    contextMenu.classList.add('show');
+  }
+
+  function closeContextMenu() { contextMenu.classList.remove('show'); }
+
+  document.addEventListener('click', (e) => {
+    if (!contextMenu.contains(e.target)) closeContextMenu();
+  });
+  document.addEventListener('contextmenu', (e) => {
+    if (!e.target.closest('.node') && !e.target.closest('.cable')) closeContextMenu();
+  });
+
+  function handleContextAction(action, deviceId, targetId) {
+    const dev = getDevice(deviceId);
+    if (!dev) return;
+
+    switch (action) {
+      case 'ping-one':
+        if (targetId) {
+          const target = getDevice(targetId);
+          if (target) {
+            if (canCommunicate(dev, target)) runPingSequence(dev, target);
+            else { showToast(`❌ Ping gagal: subnet berbeda`, 'error'); animateFailedPing(dev, target); }
+          }
+        }
+        break;
+      case 'connect':
+        if (!hasFreePort(deviceId)) { showToast(`⛔ ${dev.name} port penuh!`, 'error', 3500); return; }
+        state.connectMode = true;
+        state.connectSourceId = deviceId;
+        state.deleteMode = false;
+        setModeVisual('connect');
+        showHint(`Pilih device tujuan untuk: ${dev.name}`);
+        renderAll();
+        break;
+      case 'ping-all': pingFromAll(); break;
+      case 'edit':
+        state.selectedId = deviceId;
+        state.selectedCableId = null;
+        renderAll();
+        showHint('Edit konfigurasi di panel kanan');
+        break;
+      case 'duplicate': duplicateDevice(deviceId); break;
+      case 'delete': deleteDevice(deviceId); break;
+    }
+  }
+
+  function handleCableContextAction(action, cableId) {
+    const cable = getCable(cableId);
+    if (!cable) return;
+    const a = getDevice(cable.fromId), b = getDevice(cable.toId);
+    if (!a || !b) return;
+
+    switch (action) {
+      case 'cable-ping':
+        if (isCableActive(cable)) runPingSequence(a, b);
+        break;
+      case 'cable-ping-via-switch':
+        {
+          const switchDev = a.type === 'switch' ? a : b;
+          const endDev = a.type === 'switch' ? b : a;
+          const otherCables = state.cables.filter(c => c.id !== cable.id && (c.fromId === switchDev.id || c.toId === switchDev.id));
+          const candidates = otherCables
+            .map(c => c.fromId === switchDev.id ? c.toId : c.fromId)
+            .map(id => getDevice(id))
+            .filter(d => d && d.id !== endDev.id && d.type !== 'switch' && canCommunicate(endDev, d));
+          if (candidates.length > 0) runPingSequence(endDev, candidates[0]);
+          else showToast('Tidak ada host lain dengan subnet sama', 'warning');
+        }
+        break;
+      case 'cable-swap':
+        const tmp = cable.fromId;
+        cable.fromId = cable.toId;
+        cable.toId = tmp;
+        showToast('Ujung kabel ditukar', 'success');
+        renderAll();
+        break;
+      case 'cable-info':
+        state.selectedCableId = cableId;
+        state.selectedId = null;
+        renderAll();
+        break;
+      case 'cable-delete': deleteCable(cableId); break;
+    }
+  }
+
+  function duplicateDevice(deviceId) {
+    const dev = getDevice(deviceId);
+    if (!dev) return;
+    const cfg = DEVICE_CONFIG[dev.type];
+    typeCounters[dev.type] = (typeCounters[dev.type] || 0) + 1;
+    const newDev = {
+      id: state.nextId++,
+      type: dev.type,
+      name: `${cfg.label}${typeCounters[dev.type]}`,
+      ip: cfg.needsIP ? `${cfg.subnet}.${randomHost()}` : null,
+      mask: cfg.needsIP ? (dev.mask || '255.255.255.0') : null,
+      mac: randomMAC(),
+      x: Math.min(dev.x + 40, workspace.clientWidth - 96),
+      y: Math.min(dev.y + 40, workspace.clientHeight - 96),
+    };
+    state.devices.push(newDev);
+    state.selectedId = newDev.id;
+    showToast(`${newDev.name} dibuat`, 'success');
+    renderAll();
+  }
+
+  // ============================================================
+  // DRAG DROP DARI PALET
+  // ============================================================
+  document.querySelectorAll('.device-item[draggable="true"]').forEach(item => {
+    item.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('type', item.dataset.type);
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+  });
+
+  workspace.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+
+  workspace.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const type = e.dataTransfer.getData('type');
+    if (!type || !DEVICE_CONFIG[type]) return;
+    const rect = workspace.getBoundingClientRect();
+    let x = e.clientX - rect.left - 48;
+    let y = e.clientY - rect.top - 48;
+    x = Math.max(0, Math.min(rect.width - 96, x));
+    y = Math.max(0, Math.min(rect.height - 96, y));
+    addDevice(type, x, y);
+  });
+
+  function addDevice(type, x, y) {
+    const cfg = DEVICE_CONFIG[type];
+    typeCounters[type] = (typeCounters[type] || 0) + 1;
+    const name = `${cfg.label}${typeCounters[type]}`;
+    const dev = {
+      id: state.nextId++,
+      type, name,
+      ip: cfg.needsIP ? `${cfg.subnet}.${randomHost()}` : null,
+      mask: cfg.needsIP ? '255.255.255.0' : null,
+      mac: randomMAC(),
+      x, y,
+    };
+    state.devices.push(dev);
+    state.selectedId = dev.id;
+    state.selectedCableId = null;
+    showToast(`${name} ditambahkan`, 'success');
+    renderAll();
+  }
+
+  // ============================================================
+  // TOOLBAR — SEMUA BERFUNGSI
+  // ============================================================
+
+  // 1) TOMBOL "BARU" — Bersihkan workspace
+  document.getElementById('btnNew').addEventListener('click', () => {
+    if (state.devices.length === 0 && state.cables.length === 0) {
+      showToast('Workspace sudah kosong', 'info', 2000);
+      return;
+    }
+    showConfirm(
+      '🗑️ Bersihkan Workspace?',
+      'Semua device dan kabel akan dihapus. Tindakan ini tidak dapat dibatalkan.',
+      () => {
+        resetWorkspace();
+        showToast('✓ Workspace dibersihkan', 'success', 2500);
+      }
+    );
+  });
+
+  // 2) TOMBOL "HAPUS KABEL" — Hapus semua kabel
+  document.getElementById('btnClearCables').addEventListener('click', () => {
+    if (state.cables.length === 0) {
+      showToast('Tidak ada kabel untuk dihapus', 'info', 2000);
+      return;
+    }
+    showConfirm(
+      '✂️ Hapus Semua Kabel?',
+      `${state.cables.length} kabel akan dihapus. Device tetap ada.`,
+      () => {
+        state.cables = [];
+        state.selectedCableId = null;
+        state.connectSourceId = null;
+        renderAll();
+        showToast(`✓ ${state.cables.length === 0 ? 'Semua kabel dihapus' : 'Kabel dihapus'}`, 'success', 2500);
+      }
+    );
+  });
+
+  // 3) TOMBOL "TOPOLOGY CONTOH" — Muat demo topology
+  document.getElementById('btnDemoTopology').addEventListener('click', () => {
+    if (state.devices.length > 0) {
+      showConfirm(
+        '🏗️ Muat Topology Contoh?',
+        'Workspace saat ini akan diganti dengan topology contoh: 1 Switch + 3 PC.',
+        () => {
+          loadDemoTopology();
+        }
+      );
+    } else {
+      loadDemoTopology();
+    }
+  });
+
+  // 4) TOMBOL "DEMO PING" — Jalankan ping test semua pasangan
+  document.getElementById('btnDemo').addEventListener('click', () => {
+    if (state.devices.length < 2) {
+      showToast('Butuh minimal 2 device untuk demo ping', 'warning', 3000);
+      return;
+    }
+    pingFromAll();
+  });
+
+  const toolConnect = document.getElementById('toolConnect');
+  const toolDelete = document.getElementById('toolDelete');
+
+  function setModeVisual(mode) {
+    toolConnect.style.background = ''; toolConnect.style.borderLeft = '';
+    toolDelete.style.background = ''; toolDelete.style.borderLeft = '';
+    if (mode === 'connect') {
+      toolConnect.style.background = '#dcfce7';
+      toolConnect.style.borderLeft = '3px solid #22c55e';
+      modeBadge.textContent = 'MODE: KABEL';
+      modeBadge.style.background = '#16a34a';
+      workspace.style.cursor = 'crosshair';
+      statusText.textContent = 'Mode kabel: klik 2 device';
+    } else if (mode === 'delete') {
+      toolDelete.style.background = '#fee2e2';
+      toolDelete.style.borderLeft = '3px solid #ef4444';
+      modeBadge.textContent = 'MODE: HAPUS';
+      modeBadge.style.background = '#dc2626';
+      workspace.style.cursor = 'not-allowed';
+      statusText.textContent = 'Mode hapus: klik device/kabel';
+    } else {
+      modeBadge.textContent = 'MODE: PILIH';
+      modeBadge.style.background = '#1976d2';
+      workspace.style.cursor = 'default';
+      statusText.textContent = 'Drag device untuk pindah · Klik kanan untuk menu';
+    }
+  }
+
+  function setMode(mode) {
+    state.connectMode = false; state.deleteMode = false; state.connectSourceId = null;
+    if (mode === 'connect') state.connectMode = true;
+    else if (mode === 'delete') state.deleteMode = true;
+    setModeVisual(mode);
+    renderAll();
+  }
+
+  toolConnect.addEventListener('click', () => setMode(state.connectMode ? 'select' : 'connect'));
+  toolDelete.addEventListener('click', () => setMode(state.deleteMode ? 'select' : 'delete'));
+
+  workspace.addEventListener('click', (e) => {
+    if (e.target === workspace || e.target === cableLayer || e.target === packetLayer || e.target === emptyState) {
+      state.selectedId = null;
+      state.selectedCableId = null;
+      state.connectSourceId = null;
+      closeContextMenu();
+      renderAll();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (modalOverlay.classList.contains('show')) return; // modal handle sendiri
+      state.selectedId = null;
+      state.selectedCableId = null;
+      state.connectSourceId = null;
+      closeContextMenu();
+      setMode('select');
+      renderAll();
+    }
+    if (e.key === 'Delete') {
+      if (modalOverlay.classList.contains('show')) return;
+      if (state.selectedId) deleteDevice(state.selectedId);
+      else if (state.selectedCableId) deleteCable(state.selectedCableId);
+    }
+  });
+
+  // ============================================================
+  // PING
+  // ============================================================
+  function startPing(sourceId) {
+    if (state.isPinging) { showToast('Ping sedang berjalan...', 'warning'); return; }
+    const source = getDevice(sourceId);
+    if (!source) return;
+    if (!DEVICE_CONFIG[source.type].needsIP) { showToast('Switch tidak bisa ping', 'warning'); return; }
+
+    const connectedIds = state.cables
+      .filter(c => c.fromId === sourceId || c.toId === sourceId)
+      .map(c => c.fromId === sourceId ? c.toId : c.fromId);
+
+    const reachable = state.devices.filter(d =>
+      d.id !== sourceId && connectedIds.includes(d.id) && canCommunicate(source, d)
+    );
+
+    if (reachable.length === 0) {
+      const invalidTargets = state.devices.filter(d =>
+        d.id !== sourceId && connectedIds.includes(d.id) && d.type !== 'switch' && !canCommunicate(source, d)
+      );
+      if (invalidTargets.length > 0) {
+        showToast(`❌ Ping gagal: subnet berbeda`, 'error', 3500);
+        animateFailedPing(source, invalidTargets[0]);
+      } else {
+        showToast(`❌ Tidak ada device terhubung`, 'error');
+      }
+      return;
+    }
+
+    const target = reachable[Math.floor(Math.random() * reachable.length)];
+    runPingSequence(source, target);
+  }
+
+  function pingFromAll() {
+    if (state.isPinging) { showToast('Ping sedang berjalan...', 'warning'); return; }
+    if (state.devices.length < 2) return;
+
+    const pairs = [];
+    for (let i = 0; i < state.devices.length; i++) {
+      for (let j = i + 1; j < state.devices.length; j++) {
+        const a = state.devices[i], b = state.devices[j];
+        if (!canCommunicate(a, b)) continue;
+        if (!areConnected(a.id, b.id)) continue;
+        pairs.push([a, b]);
+      }
+    }
+
+    if (pairs.length === 0) { showToast('Tidak ada pasangan yang dapat berkomunikasi', 'warning'); return; }
+
+    showToast(`🌐 Menjalankan ${pairs.length} ping test...`, 'info');
+    state.isPinging = true;
+    let idx = 0;
+
+    const runNext = () => {
+      if (idx >= pairs.length) {
+        showToast('✓ Semua ping test selesai', 'success');
+        state.isPinging = false;
+        setSimulatingUI(false);
+        return;
+      }
+      const [a, b] = pairs[idx];
+      runPingSequence(a, b, () => {
+        idx++;
+        setTimeout(runNext, 250);
+      });
+    };
+    setSimulatingUI(true);
+    runNext();
+  }
+
+  function areConnected(fromId, toId) { return findPath(fromId, toId) !== null; }
+
+  function runPingSequence(source, target, onDone) {
+    state.isPinging = true;
+    setSimulatingUI(true);
+
+    state.activePingNode = source.id;
+    state.activePingTarget = target.id;
+    updateNodeClasses();
+
+    showToast(`📡 Ping ${source.name} → ${target.name}`, 'info', 2200);
+
+    animatePacketAlongCable(source, target, '#06b6d4', '📦', () => {
+      setTimeout(() => {
+        animatePacketAlongCable(target, source, '#8b5cf6', '✅', () => {
+          state.activePingNode = null;
+          state.activePingTarget = null;
+          updateNodeClasses();
+          showToast(`✓ Reply from ${target.ip}: bytes=32 time<1ms TTL=128`, 'success', 2500);
+          state.isPinging = false;
+          if (!onDone) setSimulatingUI(false);
+          if (onDone) onDone();
+        });
+      }, 200);
+    });
+  }
+
+  function animatePacketAlongCable(from, to, color, icon, onComplete) {
+    const path = findPath(from.id, to.id);
+    if (!path || path.length < 2) { animatePacketStraight(from, to, color, icon, onComplete); return; }
+
+    const points = [];
+    for (let i = 0; i < path.length; i++) {
+      const dev = getDevice(path[i]);
+      if (!dev) continue;
+      if (i === 0) { points.push(getEdgePoint(dev, getDevice(path[i+1]))); }
+      else if (i === path.length - 1) { points.push(getEdgePoint(dev, getDevice(path[i-1]))); }
+      else {
+        points.push(getEdgePoint(dev, getDevice(path[i-1])));
+        points.push(getEdgePoint(dev, getDevice(path[i+1])));
+      }
+    }
+    if (points.length < 2) { animatePacketStraight(from, to, color, icon, onComplete); return; }
+
+    const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    glow.setAttribute('r', 15); glow.setAttribute('fill', color); glow.setAttribute('opacity', '0.35');
+    glow.setAttribute('cx', points[0].x); glow.setAttribute('cy', points[0].y);
+    glow.setAttribute('color', color);
+    packetLayer.appendChild(glow);
+
+    const packet = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    packet.setAttribute('r', 10); packet.setAttribute('fill', color);
+    packet.setAttribute('stroke', '#ffffff'); packet.setAttribute('stroke-width', 2.5);
+    packet.setAttribute('cx', points[0].x); packet.setAttribute('cy', points[0].y);
+    packet.setAttribute('color', color);
+    packetLayer.appendChild(packet);
+
+    const iconText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    iconText.setAttribute('x', points[0].x); iconText.setAttribute('y', points[0].y + 4);
+    iconText.setAttribute('text-anchor', 'middle');
+    iconText.setAttribute('font-size', '11');
+    iconText.setAttribute('font-weight', 'bold');
+    iconText.setAttribute('fill', '#ffffff');
+    iconText.textContent = icon;
+    packetLayer.appendChild(iconText);
+
+    let totalLen = 0;
+    const segLengths = [];
+    for (let i = 0; i < points.length - 1; i++) {
+      const d = Math.hypot(points[i+1].x - points[i].x, points[i+1].y - points[i].y);
+      segLengths.push(d);
+      totalLen += d;
+    }
+
+    const duration = totalLen / 0.55;
+    const startTime = performance.now();
+
+    function step(now) {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const eased = progress < 0.5 ? 2*progress*progress : 1 - Math.pow(-2*progress + 2, 2)/2;
+      const dist = eased * totalLen;
+      let acc = 0, segIdx = 0;
+      for (let i = 0; i < segLengths.length; i++) {
+        if (acc + segLengths[i] >= dist) { segIdx = i; break; }
+        acc += segLengths[i]; segIdx = i;
+      }
+      const segProgress = segLengths[segIdx] > 0 ? (dist - acc) / segLengths[segIdx] : 0;
+      const p1 = points[segIdx], p2 = points[segIdx + 1] || points[segIdx];
+      const cx = p1.x + (p2.x - p1.x) * segProgress;
+      const cy = p1.y + (p2.y - p1.y) * segProgress;
+
+      packet.setAttribute('cx', cx); packet.setAttribute('cy', cy);
+      glow.setAttribute('cx', cx); glow.setAttribute('cy', cy);
+      iconText.setAttribute('x', cx); iconText.setAttribute('y', cy + 4);
+
+      const scale = 1 + Math.sin(progress * Math.PI * 6) * 0.12;
+      packet.setAttribute('r', 10 * scale);
+      glow.setAttribute('r', 15 * scale);
+
+      if (progress < 1) requestAnimationFrame(step);
+      else { packet.remove(); glow.remove(); iconText.remove(); if (onComplete) onComplete(); }
+    }
+    requestAnimationFrame(step);
+  }
+
+  function animatePacketStraight(from, to, color, icon, onComplete) {
+    const x1 = from.x + 48, y1 = from.y + 48;
+    const x2 = to.x + 48, y2 = to.y + 48;
+
+    const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    glow.setAttribute('r', 15); glow.setAttribute('fill', color); glow.setAttribute('opacity', '0.35');
+    glow.setAttribute('cx', x1); glow.setAttribute('cy', y1); glow.setAttribute('color', color);
+    packetLayer.appendChild(glow);
+
+    const packet = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    packet.setAttribute('r', 10); packet.setAttribute('fill', color);
+    packet.setAttribute('stroke', '#ffffff'); packet.setAttribute('stroke-width', 2.5);
+    packet.setAttribute('cx', x1); packet.setAttribute('cy', y1); packet.setAttribute('color', color);
+    packetLayer.appendChild(packet);
+
+    const iconText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    iconText.setAttribute('x', x1); iconText.setAttribute('y', y1 + 4);
+    iconText.setAttribute('text-anchor', 'middle');
+    iconText.setAttribute('font-size', '11');
+    iconText.setAttribute('font-weight', 'bold');
+    iconText.setAttribute('fill', '#ffffff');
+    iconText.textContent = icon;
+    packetLayer.appendChild(iconText);
+
+    const duration = 700;
+    const startTime = performance.now();
+    function step(now) {
+      const p = Math.min((now - startTime) / duration, 1);
+      const eased = p < 0.5 ? 2*p*p : 1 - Math.pow(-2*p + 2, 2)/2;
+      const cx = x1 + (x2 - x1) * eased, cy = y1 + (y2 - y1) * eased;
+      packet.setAttribute('cx', cx); packet.setAttribute('cy', cy);
+      glow.setAttribute('cx', cx); glow.setAttribute('cy', cy);
+      iconText.setAttribute('x', cx); iconText.setAttribute('y', cy + 4);
+      if (p < 1) requestAnimationFrame(step);
+      else { packet.remove(); glow.remove(); iconText.remove(); if (onComplete) onComplete(); }
+    }
+    requestAnimationFrame(step);
+  }
+
+  function findPath(fromId, toId) {
+    if (fromId === toId) return [fromId];
+    const adj = {};
+    state.devices.forEach(d => adj[d.id] = []);
+    state.cables.forEach(c => {
+      if (adj[c.fromId]) adj[c.fromId].push(c.toId);
+      if (adj[c.toId]) adj[c.toId].push(c.fromId);
+    });
+    const queue = [[fromId]], visited = new Set([fromId]);
+    while (queue.length > 0) {
+      const path = queue.shift();
+      const last = path[path.length - 1];
+      if (last === toId) return path;
+      for (const next of (adj[last] || [])) {
+        if (!visited.has(next)) { visited.add(next); queue.push([...path, next]); }
+      }
+    }
+    return null;
+  }
+
+  function getEdgePoint(dev, target) {
+    if (!target) return { x: dev.x + 48, y: dev.y + 48 };
+    const c1 = { x: dev.x + 48, y: dev.y + 48 };
+    const c2 = { x: target.x + 48, y: target.y + 48 };
+    const dx = c2.x - c1.x, dy = c2.y - c1.y;
+    const len = Math.sqrt(dx*dx + dy*dy) || 1;
+    return { x: c1.x + (dx/len) * 48, y: c1.y + (dy/len) * 48 };
+  }
+
+  function animateFailedPing(from, to) {
+    const x1 = from.x + 48, y1 = from.y + 48;
+    const x2 = to.x + 48, y2 = to.y + 48;
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+    line.setAttribute('stroke', '#ef4444'); line.setAttribute('stroke-width', 3);
+    line.setAttribute('stroke-dasharray', '6,6'); line.setAttribute('opacity', 0.8);
+    packetLayer.appendChild(line);
+    const midX = (x1 + x2) / 2, midY = (y1 + y2) / 2;
+    const xMark = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    xMark.setAttribute('x', midX); xMark.setAttribute('y', midY + 8);
+    xMark.setAttribute('text-anchor', 'middle');
+    xMark.setAttribute('font-size', '28');
+    xMark.setAttribute('fill', '#ef4444');
+    xMark.setAttribute('font-weight', 'bold');
+    xMark.textContent = '✕';
+    packetLayer.appendChild(xMark);
+    setTimeout(() => { line.remove(); xMark.remove(); }, 1500);
+  }
+
+  // ============================================================
+  // INIT
+  // ============================================================
+  function init() {
+    renderAll();
+    setTimeout(() => showHint('💡 Drag perangkat dari palet · Klik "🏗️ Topology Contoh" untuk demo'), 800);
+  }
+
+  init();
+
+})();
+</script>
+</body>
+</html>
